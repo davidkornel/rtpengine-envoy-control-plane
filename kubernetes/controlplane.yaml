@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: envoy-controlplane
+  labels:
+    app: envoy-controlplane
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: envoy-controlplane
+  template:
+    metadata:
+      labels:
+        app: envoy-controlplane
+    spec:
+      containers:
+        # sidecar
+        - name: envoy-controlplane
+          image: davidkornel/controlplane:1.0
+          imagePullPolicy: IfNotPresent
+          command: [ "make" ]
+          args: ["controlplane"]
+          #command: ["/bin/sh"]
+          #args: ["-c", "while true; do echo hello; sleep 10;done"]
+          ports:
+            - containerPort: 1234
+              name: udp
+            - containerPort: 18000
+              name: management
+
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: envoy-controlplane
+  name: envoy-controlplane
+spec:
+  ports:
+    - port: 1234
+      name: udp
+      protocol: UDP
+      targetPort: 1234
+    - port: 18000
+      name: management
+      protocol: TCP
+      targetPort: 18000
+  selector:
+    app: envoy-controlplane
+  type: ClusterIP
