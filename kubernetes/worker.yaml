@@ -1,0 +1,178 @@
+#this is just a part of full resource file
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: envoy-worker-config
+data:
+  envoy.yaml: |
+    admin:
+      access_log_path: /dev/null
+      address:
+        socket_address:
+          address: 0.0.0.0
+          port_value: 19002
+    dynamic_resources:
+      cds_config:
+        resource_api_version: V3
+        api_config_source:
+          api_type: GRPC
+          transport_api_version: V3
+          grpc_services:
+          - envoy_grpc:
+              cluster_name: xds_cluster
+          set_node_on_first_message_only: true
+      lds_config:
+        resource_api_version: V3
+        api_config_source:
+          api_type: GRPC
+          transport_api_version: V3
+          grpc_services:
+          - envoy_grpc:
+              cluster_name: xds_cluster
+          set_node_on_first_message_only: true
+    node:
+      cluster: k8s-cluster
+      id: sidecar
+    static_resources:
+      listeners:
+      - name: worker_ng_control
+        reuse_port: true
+        address:
+          socket_address:
+            protocol: UDP
+            address: 0.0.0.0
+            port_value: 1998
+        listener_filters:
+          name: envoy.filters.udp_listener.udp_proxy
+          typed_config:
+            '@type': type.googleapis.com/envoy.extensions.filters.udp.udp_proxy.v3.UdpProxyConfig
+            stat_prefix: service
+            cluster: worker_ng_control_cluster
+      clusters:
+      - name: xds_cluster
+        connect_timeout: 1s
+        type: STRICT_DNS
+        http2_protocol_options: {}
+        load_assignment:
+          cluster_name: xds_cluster
+          endpoints:
+          - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: envoy-controlplane.default.svc
+                    port_value: 18000
+      - name: worker_ng_control_cluster
+        connect_timeout: 0.25s
+        type: STRICT_DNS
+        lb_policy: ROUND_ROBIN
+        load_assignment:
+          cluster_name: worker_ng_control_cluster
+          endpoints:
+            - lb_endpoints:
+                - endpoint:
+                    address:
+                      socket_address:
+                        address: 127.0.0.1
+                        port_value: 2000
+    layered_runtime:
+      layers:
+        - name: runtime-0
+          rtds_layer:
+            rtds_config:
+              resource_api_version: V3
+              api_config_source:
+                transport_api_version: V3
+                api_type: GRPC
+                grpc_services:
+                  envoy_grpc:
+                    cluster_name: xds_cluster
+            name: runtime-0
+---
+
+# worker
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  labels:
+    app: worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+      annotations:
+        sidecar.istio.io/inject: "false"
+    spec:
+      volumes:
+        - name: envoy-config-volume
+          configMap:
+            name: envoy-worker-config
+        - name: rtpengine-config-volume
+          configMap:
+            name: rtpengine-config
+        - name: kernel-debug
+          hostPath:
+            path: /sys/kernel/debug
+            type: Directory
+      containers:
+        # sidecar
+        - name: envoy-worker
+          image: envoyproxy/envoy:v1.17-latest
+          imagePullPolicy: Always
+          command: [ "envoy" ]
+          args: ["-c", "/etc/envoy/envoy.yaml", "-l", "trace"]
+          ports:
+            - containerPort: 1998
+              name: ng-control
+            - containerPort: 19000
+              name: rtp-a
+            - containerPort: 19001
+              name: rtcp-a
+            - containerPort: 19002
+              name: rtp-b
+            - containerPort: 19003
+              name: rtcp-b
+          volumeMounts:
+            - name: envoy-config-volume
+              mountPath: /etc/envoy
+        # rtp connected containers here
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: worker
+  name: worker
+spec:
+  ports:
+    - port: 19000
+      name: worker-rtp-a-service-port
+      protocol: UDP
+      targetPort: 19000
+    - port: 19001
+      name: worker-rtcp-a-service-port
+      protocol: UDP
+      targetPort: 19001
+    - port: 19002
+      name: worker-rtp-b-service-port
+      protocol: UDP
+      targetPort: 19002
+    - port: 19003
+      name: worker-rtcp-b-service-port
+      protocol: UDP
+      targetPort: 19003
+    - port: 1998
+      name: udp-rtpengine-ng-port
+      protocol: UDP
+      targetPort: 1998
+  selector:
+    app: worker
+  type: ClusterIP

@@ -1,0 +1,134 @@
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: envoy-ingress-config
+data:
+  envoy.yaml: |
+    admin:
+      access_log_path: /dev/null
+      address:
+        socket_address:
+          address: 0.0.0.0
+          port_value: 19000
+    dynamic_resources:
+      cds_config:
+        resource_api_version: V3
+        api_config_source:
+          api_type: GRPC
+          transport_api_version: V3
+          grpc_services:
+          - envoy_grpc:
+              cluster_name: xds_cluster
+          set_node_on_first_message_only: true
+      lds_config:
+        resource_api_version: V3
+        api_config_source:
+          api_type: GRPC
+          transport_api_version: V3
+          grpc_services:
+          - envoy_grpc:
+              cluster_name: xds_cluster
+          set_node_on_first_message_only: true
+    node:
+      cluster: k8s-cluster
+      id: ingress
+    static_resources:
+      listeners:
+      - name: ingress_ng_control
+        reuse_port: true
+        address:
+          socket_address:
+            protocol: UDP
+            address: 0.0.0.0
+            port_value: 2000
+        listener_filters:
+          name: envoy.filters.udp_listener.udp_proxy
+          typed_config:
+            '@type': type.googleapis.com/envoy.extensions.filters.udp.udp_proxy.v3.UdpProxyConfig
+            stat_prefix: service
+            cluster: ingress_ng_control_cluster
+      clusters:
+      - name: xds_cluster
+        connect_timeout: 1s
+        type: STRICT_DNS
+        http2_protocol_options: {}
+        load_assignment:
+          cluster_name: xds_cluster
+          endpoints:
+          - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: envoy-controlplane.default.svc
+                    port_value: 18000
+      - name: ingress_ng_control_cluster
+        connect_timeout: 0.25s
+        type: STRICT_DNS
+        lb_policy: ROUND_ROBIN
+        load_assignment:
+          cluster_name: service_udp
+          endpoints:
+            - lb_endpoints:
+                - endpoint:
+                    address:
+                      socket_address:
+                        #Change address to the actual worker svc DNS address
+                        address: envoy-worker.default.svc
+                        port_value: 1998
+    layered_runtime:
+      layers:
+        - name: runtime-0
+          rtds_layer:
+            rtds_config:
+              resource_api_version: V3
+              api_config_source:
+                transport_api_version: V3
+                api_type: GRPC
+                grpc_services:
+                  envoy_grpc:
+                    cluster_name: xds_cluster
+            name: runtime-0
+---
+
+
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: envoy-ingress
+  labels:
+    app: envoy-ingress
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: envoy-ingress
+  template:
+    metadata:
+      labels:
+        app: envoy-ingress
+    spec:
+      volumes:
+        - name: envoy-ingress-config
+          configMap:
+            name: envoy-ingress-config
+      containers:
+        - name: envoy-ingress
+          image: envoyproxy/envoy:v1.17-latest
+          imagePullPolicy: Always
+          command: [ "envoy" ]
+          args: ["-c", "/etc/envoy/envoy.yaml", "-l", "trace"]
+          #command: ["/bin/sh"]
+          #args: ["-c", "while true; do echo hello; sleep 10;done"]
+          ports:
+            - containerPort: 19000
+              name: admin
+            - containerPort: 22222
+              name: udp-listener
+          volumeMounts:
+            - name: envoy-ingress-config
+              mountPath: /etc/envoy
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+---
