@@ -17,8 +17,7 @@ spec:
       containers:
         # sidecar
         - name: envoy-controlplane
-          image: davidkornel/controlplane:1.0
-          imagePullPolicy: IfNotPresent
+          image: davidkornel/controlplane
           command: [ "make" ]
           args: ["controlplane"]
           #command: ["/bin/sh"]
@@ -28,10 +27,7 @@ spec:
               name: udp
             - containerPort: 18000
               name: management
-
-
 ---
-
 apiVersion: v1
 kind: Service
 metadata:
