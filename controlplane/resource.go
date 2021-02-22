@@ -189,7 +189,7 @@ func createNewListeners(m Message) {
 		cluster: udpCluster{
 			clusterName:  "ingress-c-rtp-a",
 			upstreamPort: 19000,
-			upstreamHost: "envoy-worker.default.svc",
+			upstreamHost: "worker.default.svc",
 		},
 		listenerPort:    m.CallerRTP,
 		listenerAddress: "0.0.0.0",
@@ -199,7 +199,7 @@ func createNewListeners(m Message) {
 		cluster: udpCluster{
 			clusterName:  "ingress-c-rtcp-a",
 			upstreamPort: 19001,
-			upstreamHost: "envoy-worker.default.svc",
+			upstreamHost: "worker.default.svc",
 		},
 		listenerPort:    m.CallerRTCP,
 		listenerAddress: "0.0.0.0",
@@ -209,7 +209,7 @@ func createNewListeners(m Message) {
 		cluster: udpCluster{
 			clusterName:  "ingress-c-rtp-b",
 			upstreamPort: 19002,
-			upstreamHost: "envoy-worker.default.svc",
+			upstreamHost: "worker.default.svc",
 		},
 		listenerPort:    m.CalleeRTP,
 		listenerAddress: "0.0.0.0",
@@ -219,9 +219,9 @@ func createNewListeners(m Message) {
 		cluster: udpCluster{
 			clusterName:  "ingress-c-rtcp-b",
 			upstreamPort: 19003,
-			upstreamHost: "envoy-worker.default.svc",
+			upstreamHost: "worker.default.svc",
 		},
-		listenerPort:    m.CallerRTCP,
+		listenerPort:    m.CalleeRTCP,
 		listenerAddress: "0.0.0.0",
 	}
 
