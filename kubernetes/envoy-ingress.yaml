@@ -67,14 +67,14 @@ data:
         type: STRICT_DNS
         lb_policy: ROUND_ROBIN
         load_assignment:
-          cluster_name: service_udp
+          cluster_name: ingress_ng_control_cluster
           endpoints:
             - lb_endpoints:
                 - endpoint:
                     address:
                       socket_address:
                         #Change address to the actual worker svc DNS address
-                        address: envoy-worker.default.svc
+                        address: worker.default.svc
                         port_value: 1998
     layered_runtime:
       layers:
