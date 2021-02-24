@@ -17,7 +17,7 @@ spec:
       containers:
         # sidecar
         - name: envoy-controlplane
-          image: davidkornel/controlplane
+          image: davidkornel/controlplane:1.1
           command: [ "make" ]
           args: ["controlplane"]
           #command: ["/bin/sh"]

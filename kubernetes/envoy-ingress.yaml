@@ -114,6 +114,8 @@ spec:
           configMap:
             name: envoy-ingress-config
       containers:
+        - name: net-debug
+          image: l7mp/net-debug:0.5.3
         - name: envoy-ingress
           image: envoyproxy/envoy:v1.17-latest
           imagePullPolicy: Always

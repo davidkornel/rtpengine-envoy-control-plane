@@ -9,7 +9,7 @@ data:
       address:
         socket_address:
           address: 0.0.0.0
-          port_value: 19002
+          port_value: 20002
     dynamic_resources:
       cds_config:
         resource_api_version: V3
