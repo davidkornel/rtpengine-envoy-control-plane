@@ -1,15 +1,12 @@
 package controlplane
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/jackpal/bencode-go"
 	"log"
 	"net"
 	"strings"
-	"time"
 )
 
 const maxBufferSize = 1024
@@ -81,26 +78,6 @@ func Server(address string, l *Logger) (err error) {
 
 			decodeJSON(buffer[:n], l)
 
-			// Setting a deadline for the `write` operation allows us to not block
-			// for longer than a specific timeout.
-			//
-			// In the case of a write operation, that'd mean waiting for the send
-			// queue to be freed enough so that we are able to proceed.
-			deadline := time.Now().Add(10000)
-			err = pc.SetWriteDeadline(deadline)
-			if err != nil {
-				doneChan <- err
-				return
-			}
-
-			// Write the packet's contents back to the client.
-			n, err = pc.WriteTo(buffer[:n], addr)
-			if err != nil {
-				doneChan <- err
-				return
-			}
-
-			fmt.Printf("packet-written: bytes=%d to=%s\n", n, addr.String())
 		}
 	}()
 
@@ -128,14 +105,16 @@ func decodeJSON(buffer []byte, l *Logger) {
 	if err != nil {
 		l.Errorf("Error while decoding JSON: %s\n", err)
 	} else {
-		createNewListeners(m)
 		l.Debugf("CallerRTP: %d, CallerRTCP: %d, CalleeRTP: %d, CalleeRTCP: %d\n", m.CallerRTP, m.CallerRTCP, m.CalleeRTP, m.CalleeRTCP)
+		createNewListeners(m)
 
 		updateConfig("ingress", l)
 		updateConfig("sidecar", l)
 	}
 }
 
+/*
+//unmarshalBencodedMessage is able to process a bencoded []byte into bencodedMessage struct
 func unmarshalBencodedMessage(buffer []byte, l *Logger) {
 	var ub = bencodedMessage{"ice", "Call-id", "command",
 		"from-tag", "label", "sdp"}
@@ -151,7 +130,6 @@ func unmarshalBencodedMessage(buffer []byte, l *Logger) {
 		updateConfig("sidecar", l)
 	} else {
 		fmt.Println(err)
-		//TODO DELETE line below
-		updateConfig("ingress", l)
 	}
 }
+*/
