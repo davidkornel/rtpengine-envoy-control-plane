@@ -14,6 +14,7 @@
 package controlplane
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -182,7 +183,7 @@ func GenerateSnapshot(pod string) cachev3.Snapshot {
 func createNewListeners(m Message) {
 	ingressListeners = make([]udpListener, 0)
 	sidecarListeners = make([]udpListener, 0)
-
+	fmt.Sprintf("\n\n\n\n  ingresslist: %+v \n  sidecarlist: %+v \n\n\n\n", ingressListeners, sidecarListeners)
 	//INGRESS
 	var rtpAI = udpListener{
 		listenerName: "ingress-l-rtp-a",
@@ -280,8 +281,23 @@ func updateConfig(pod string, l *Logger) {
 		l.Errorf("snapshot inconsistency: %+v\n%+v", snapshot, err)
 		os.Exit(1)
 	}
-	l.Debugf("will serve snapshot %+v", snapshot)
 
+	// Clear the snapshot from the cache
+	// if there is an available snapshot for the given node
+	if snap, err := cache.GetSnapshot(pod); err == nil {
+		l.Debugf("Snapshot to be cleared: %+v \n", snap)
+		res := snap.GetResources("type.googleapis.com/envoy.config.listener.v3.Listener")
+		fmt.Printf("\n\n\n")
+		for key, value := range res {
+			fmt.Println("Key:", key, "Value:", value)
+			value.Reset()
+		}
+		fmt.Printf("\n\n\n")
+	} else {
+		l.Debugf("No snapshot to be cleared: %s", err)
+	}
+
+	l.Debugf("will serve snapshot %+v", snapshot)
 	// Add the snapshot to the cache
 	if err := cache.SetSnapshot(pod, snapshot); err != nil {
 		l.Errorf("snapshot error %q for %+v", err, snapshot)
@@ -289,11 +305,3 @@ func updateConfig(pod string, l *Logger) {
 	}
 
 }
-
-/*
-
-*TODO dont pass cache trough everything
-*TODO rewrite resource.go to have rtp/rtcp listeners and clusters BOTH FOR ingress GW and sidecar
-*TODO act like we have everything to configure, so when we'll have everything
-*TODO the only task we'll have is to process the incoming data and set some variables in update config
- */
