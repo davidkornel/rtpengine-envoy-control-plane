@@ -183,12 +183,11 @@ func GenerateSnapshot(pod string) cachev3.Snapshot {
 func createNewListeners(m Message) {
 	ingressListeners = make([]udpListener, 0)
 	sidecarListeners = make([]udpListener, 0)
-	fmt.Sprintf("\n\n\n\n  ingresslist: %+v \n  sidecarlist: %+v \n\n\n\n", ingressListeners, sidecarListeners)
 	//INGRESS
 	var rtpAI = udpListener{
-		listenerName: "ingress-l-rtp-a",
+		listenerName: fmt.Sprintf("ingress-l-rtp-a-%d", ingressVersion+1),
 		cluster: udpCluster{
-			clusterName:  "ingress-c-rtp-a",
+			clusterName:  fmt.Sprintf("ingress-c-rtp-a-%d", ingressVersion+1),
 			upstreamPort: 19000,
 			upstreamHost: "worker.default.svc",
 		},
@@ -196,9 +195,9 @@ func createNewListeners(m Message) {
 		listenerAddress: "0.0.0.0",
 	}
 	var rtcpAI = udpListener{
-		listenerName: "ingress-l-rtcp-a",
+		listenerName: fmt.Sprintf("ingress-l-rtcp-a-%d", ingressVersion+1),
 		cluster: udpCluster{
-			clusterName:  "ingress-c-rtcp-a",
+			clusterName:  fmt.Sprintf("ingress-c-rtcp-a-%d", ingressVersion+1),
 			upstreamPort: 19001,
 			upstreamHost: "worker.default.svc",
 		},
@@ -206,9 +205,9 @@ func createNewListeners(m Message) {
 		listenerAddress: "0.0.0.0",
 	}
 	var rtpBI = udpListener{
-		listenerName: "ingress-l-rtp-b",
+		listenerName: fmt.Sprintf("ingress-l-rtp-b-%d", ingressVersion+1),
 		cluster: udpCluster{
-			clusterName:  "ingress-c-rtp-b",
+			clusterName:  fmt.Sprintf("ingress-c-rtp-b-%d", ingressVersion+1),
 			upstreamPort: 19002,
 			upstreamHost: "worker.default.svc",
 		},
@@ -216,9 +215,9 @@ func createNewListeners(m Message) {
 		listenerAddress: "0.0.0.0",
 	}
 	var rtcpBI = udpListener{
-		listenerName: "ingress-l-rtcp-b",
+		listenerName: fmt.Sprintf("ingress-l-rtcp-b-%d", ingressVersion+1),
 		cluster: udpCluster{
-			clusterName:  "ingress-c-rtcp-b",
+			clusterName:  fmt.Sprintf("ingress-c-rtcp-b-%d", ingressVersion+1),
 			upstreamPort: 19003,
 			upstreamHost: "worker.default.svc",
 		},
@@ -226,11 +225,11 @@ func createNewListeners(m Message) {
 		listenerAddress: "0.0.0.0",
 	}
 
-	//WORKER
+	//WORKER/SIDECAR
 	var rtpAW = udpListener{
-		listenerName: "worker-l-rtp-a",
+		listenerName: fmt.Sprintf("worker-l-rtp-a-%d", sidecarVersion+1),
 		cluster: udpCluster{
-			clusterName:  "worker-c-rtp-a",
+			clusterName:  fmt.Sprintf("worker-c-rtp-a-%d", sidecarVersion+1),
 			upstreamPort: m.CallerRTP,
 			upstreamHost: "127.0.0.1",
 		},
@@ -238,9 +237,9 @@ func createNewListeners(m Message) {
 		listenerAddress: "0.0.0.0",
 	}
 	var rtcpAW = udpListener{
-		listenerName: "worker-l-rtcp-a",
+		listenerName: fmt.Sprintf("worker-l-rtcp-a-%d", sidecarVersion+1),
 		cluster: udpCluster{
-			clusterName:  "worker-c-rtcp-a",
+			clusterName:  fmt.Sprintf("worker-c-rtcp-a-%d", sidecarVersion+1),
 			upstreamPort: m.CallerRTCP,
 			upstreamHost: "127.0.0.1",
 		},
@@ -248,9 +247,9 @@ func createNewListeners(m Message) {
 		listenerAddress: "0.0.0.0",
 	}
 	var rtpBW = udpListener{
-		listenerName: "worker-l-rtp-b",
+		listenerName: fmt.Sprintf("worker-l-rtp-b-%d", sidecarVersion+1),
 		cluster: udpCluster{
-			clusterName:  "worker-c-rtp-b",
+			clusterName:  fmt.Sprintf("worker-c-rtp-b-%d", sidecarVersion+1),
 			upstreamPort: m.CalleeRTP,
 			upstreamHost: "127.0.0.1",
 		},
@@ -258,9 +257,9 @@ func createNewListeners(m Message) {
 		listenerAddress: "0.0.0.0",
 	}
 	var rtcpBW = udpListener{
-		listenerName: "worker-l-rtcp-b",
+		listenerName: fmt.Sprintf("worker-l-rtcp-b-%d", sidecarVersion+1),
 		cluster: udpCluster{
-			clusterName:  "worker-c-rtcp-b",
+			clusterName:  fmt.Sprintf("worker-c-rtcp-b-%d", sidecarVersion+1),
 			upstreamPort: m.CalleeRTCP,
 			upstreamHost: "127.0.0.1",
 		},
@@ -282,20 +281,20 @@ func updateConfig(pod string, l *Logger) {
 		os.Exit(1)
 	}
 
-	// Clear the snapshot from the cache
-	// if there is an available snapshot for the given node
-	if snap, err := cache.GetSnapshot(pod); err == nil {
-		l.Debugf("Snapshot to be cleared: %+v \n", snap)
-		res := snap.GetResources("type.googleapis.com/envoy.config.listener.v3.Listener")
-		fmt.Printf("\n\n\n")
-		for key, value := range res {
-			fmt.Println("Key:", key, "Value:", value)
-			value.Reset()
-		}
-		fmt.Printf("\n\n\n")
-	} else {
-		l.Debugf("No snapshot to be cleared: %s", err)
-	}
+	//// Clear the snapshot from the cache
+	//// if there is an available snapshot for the given node
+	//if snap, err := cache.GetSnapshot(pod); err == nil {
+	//	l.Debugf("Snapshot to be cleared: %+v \n", snap)
+	//	res := snap.GetResources("type.googleapis.com/envoy.config.listener.v3.Listener")
+	//	fmt.Printf("\n\n\n")
+	//	for key, value := range res {
+	//		fmt.Println("Key:", key, "Value:", value)
+	//		value.Reset()
+	//	}
+	//	fmt.Printf("\n\n\n")
+	//} else {
+	//	l.Debugf("No snapshot to be cleared: %s", err)
+	//}
 
 	l.Debugf("will serve snapshot %+v", snapshot)
 	// Add the snapshot to the cache
