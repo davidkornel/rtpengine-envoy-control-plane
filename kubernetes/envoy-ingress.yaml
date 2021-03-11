@@ -120,7 +120,7 @@ spec:
           image: envoyproxy/envoy:v1.17-latest
           imagePullPolicy: Always
           command: [ "envoy" ]
-          args: ["-c", "/etc/envoy/envoy.yaml", "-l", "trace"]
+          args: ["-c", "/etc/envoy/envoy.yaml", "-l", "trace" , "--drain-time-s", "1"]
           #command: ["/bin/sh"]
           #args: ["-c", "while true; do echo hello; sleep 10;done"]
           ports:

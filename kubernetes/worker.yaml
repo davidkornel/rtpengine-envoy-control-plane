@@ -124,7 +124,7 @@ spec:
           image: envoyproxy/envoy:v1.17-latest
           imagePullPolicy: Always
           command: [ "envoy" ]
-          args: ["-c", "/etc/envoy/envoy.yaml", "-l", "trace"]
+          args: ["-c", "/etc/envoy/envoy.yaml", "-l", "trace", "--drain-time-s", "1"]
           ports:
             - containerPort: 1998
               name: ng-control
