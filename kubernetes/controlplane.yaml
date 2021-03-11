@@ -18,6 +18,7 @@ spec:
         # sidecar
         - name: envoy-controlplane
           image: davidkornel/controlplane:1.1
+          imagePullPolicy: Always
           command: [ "make" ]
           args: ["controlplane"]
           #command: ["/bin/sh"]
