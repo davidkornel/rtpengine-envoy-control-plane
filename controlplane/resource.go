@@ -15,6 +15,7 @@ package controlplane
 
 import (
 	"fmt"
+	"github.com/golang/protobuf/ptypes/wrappers"
 	"log"
 	"os"
 	"strconv"
@@ -60,17 +61,52 @@ func makeUDPClusters(pod string) *[]types.Resource {
 	var clusters []types.Resource
 	if pod == "ingress" {
 		for _, list := range ingressListeners {
-			clusters = append(clusters, *makeUDPCluster(list.cluster)...)
+			clusters = append(clusters, *makeUDPClusterIngress(list.cluster)...)
 		}
 	} else if pod == "sidecar" {
 		for _, list := range sidecarListeners {
-			clusters = append(clusters, *makeUDPCluster(list.cluster)...)
+			clusters = append(clusters, *makeUDPClusterSidecar(list.cluster)...)
 		}
 	}
 	return &clusters
 }
 
-func makeUDPCluster(udpClust udpCluster) *[]types.Resource {
+func makeUDPClusterIngress(udpClust udpCluster) *[]types.Resource {
+
+	clust := &cluster.Cluster{
+		Name:           udpClust.clusterName,
+		ConnectTimeout: ptypes.DurationProto(1 * time.Second),
+		ClusterDiscoveryType: &cluster.Cluster_Type{
+			Type: cluster.Cluster_STRICT_DNS,
+		},
+		LbPolicy: cluster.Cluster_ROUND_ROBIN,
+		HealthChecks: []*core.HealthCheck{{
+			Timeout:            ptypes.DurationProto(100 * time.Millisecond),
+			Interval:           ptypes.DurationProto(100 * time.Millisecond),
+			UnhealthyThreshold: &wrappers.UInt32Value{Value: 1},
+			HealthyThreshold:   &wrappers.UInt32Value{Value: 15},
+			HealthChecker: &core.HealthCheck_TcpHealthCheck_{
+				TcpHealthCheck: &core.HealthCheck_TcpHealthCheck{
+					Send: &core.HealthCheck_Payload{
+						Payload: &core.HealthCheck_Payload_Text{
+							Text: "00000FF",
+						},
+					},
+					Receive: []*core.HealthCheck_Payload{{
+						Payload: &core.HealthCheck_Payload_Text{
+							Text: "00000FF",
+						},
+					}},
+				},
+			},
+			NoTrafficInterval: ptypes.DurationProto(1 * time.Second),
+		}},
+		LoadAssignment: makeEndpointIngress(udpClust),
+	}
+	return &[]types.Resource{clust}
+}
+
+func makeUDPClusterSidecar(udpClust udpCluster) *[]types.Resource {
 
 	clust := &cluster.Cluster{
 		Name:           udpClust.clusterName,
@@ -79,12 +115,12 @@ func makeUDPCluster(udpClust udpCluster) *[]types.Resource {
 			Type: cluster.Cluster_STRICT_DNS,
 		},
 		LbPolicy:       cluster.Cluster_ROUND_ROBIN,
-		LoadAssignment: makeEndpoint(udpClust),
+		LoadAssignment: makeEndpointSidecar(udpClust),
 	}
 	return &[]types.Resource{clust}
 }
 
-func makeEndpoint(udpClust udpCluster) *endpoint.ClusterLoadAssignment {
+func makeEndpointSidecar(udpClust udpCluster) *endpoint.ClusterLoadAssignment {
 	return &endpoint.ClusterLoadAssignment{
 		ClusterName: udpClust.clusterName,
 		Endpoints: []*endpoint.LocalityLbEndpoints{{
@@ -109,21 +145,93 @@ func makeEndpoint(udpClust udpCluster) *endpoint.ClusterLoadAssignment {
 	}
 }
 
+func makeEndpointIngress(udpClust udpCluster) *endpoint.ClusterLoadAssignment {
+	return &endpoint.ClusterLoadAssignment{
+		ClusterName: udpClust.clusterName,
+		Endpoints: []*endpoint.LocalityLbEndpoints{{
+			LbEndpoints: []*endpoint.LbEndpoint{{
+				HostIdentifier: &endpoint.LbEndpoint_Endpoint{
+					Endpoint: &endpoint.Endpoint{
+						Address: &core.Address{
+							Address: &core.Address_SocketAddress{
+								SocketAddress: &core.SocketAddress{
+									Protocol: core.SocketAddress_UDP,
+									Address:  udpClust.upstreamHost,
+									PortSpecifier: &core.SocketAddress_PortValue{
+										PortValue: udpClust.upstreamPort,
+									},
+								},
+							},
+						},
+						HealthCheckConfig: &endpoint.Endpoint_HealthCheckConfig{
+							PortValue: 1233,
+						},
+					},
+				},
+			}},
+		}},
+	}
+}
+
 func makeUDPListeners(pod string) *[]types.Resource {
 	var listeners []types.Resource
 	if pod == "ingress" {
 		for _, list := range ingressListeners {
-			listeners = append(listeners, *makeUDPListener(list)...)
+			listeners = append(listeners, *makeUDPListenerIngress(list)...)
 		}
 	} else if pod == "sidecar" {
 		for _, list := range sidecarListeners {
-			listeners = append(listeners, *makeUDPListener(list)...)
+			listeners = append(listeners, *makeUDPListenerSidecar(list)...)
 		}
 	}
 	return &listeners
 }
 
-func makeUDPListener(udpList udpListener) *[]types.Resource {
+func makeUDPListenerIngress(udpList udpListener) *[]types.Resource {
+
+	udpFilter := &udp.UdpProxyConfig{
+		StatPrefix: udpList.listenerName,
+		RouteSpecifier: &udp.UdpProxyConfig_Cluster{
+			Cluster: udpList.cluster.clusterName,
+		},
+		HashPolicies: []*udp.UdpProxyConfig_HashPolicy{{
+			PolicySpecifier: &udp.UdpProxyConfig_HashPolicy_SourceIp{
+				SourceIp: true,
+			},
+		},
+		},
+	}
+
+	pbst, err := ptypes.MarshalAny(udpFilter)
+	if err != nil {
+		panic(err)
+	}
+
+	list := &listener.Listener{
+		Name:      udpList.listenerName,
+		ReusePort: true,
+		Address: &core.Address{
+			Address: &core.Address_SocketAddress{
+				SocketAddress: &core.SocketAddress{
+					Protocol: core.SocketAddress_UDP,
+					Address:  "0.0.0.0",
+					PortSpecifier: &core.SocketAddress_PortValue{
+						PortValue: udpList.listenerPort,
+					},
+				},
+			},
+		},
+		ListenerFilters: []*listener.ListenerFilter{{
+			Name: "envoy.filters.udp_listener.udp_proxy",
+			ConfigType: &listener.ListenerFilter_TypedConfig{
+				TypedConfig: pbst,
+			},
+		}},
+	}
+	return &[]types.Resource{list}
+}
+
+func makeUDPListenerSidecar(udpList udpListener) *[]types.Resource {
 
 	udpFilter := &udp.UdpProxyConfig{
 		StatPrefix: udpList.listenerName,
