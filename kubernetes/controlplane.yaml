@@ -17,7 +17,7 @@ spec:
       containers:
         # sidecar
         - name: envoy-controlplane
-          image: davidkornel/controlplane:1.1
+          image: davidkornel/controlplane:latest
           imagePullPolicy: Always
           command: [ "make" ]
           args: ["controlplane"]
