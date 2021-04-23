@@ -1,0 +1,59 @@
+# rtpe-controller
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rtpe-controller
+  labels:
+    app: rtpe-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rtpe-controller
+  template:
+    metadata:
+      labels:
+        app: rtpe-controller
+    spec:
+      containers:
+        - name: net-debug
+          image: l7mp/net-debug:0.5.3
+        - name: rtpe-controller
+          image: vidarhun/rtpe-controller
+          imagePullPolicy: Always
+          env:
+            - name: RTPE_CONTROLLER
+              value: "envoy"
+            - name: RTPE_ADDRESS
+              value: "worker"
+            - name: RTPE_PORT
+              value: "22222"
+            - name: WITHOUT_JSONSOCKET
+              value: "yes"
+            - name: RTPE_PROTOCOL
+              value: 'udp'
+            - name: ENVOY_MGM_ADDRESS
+              value: "envoy-controlplane"
+            - name: ENVOY_MGM_PORT
+              value: "1234"
+            - name: LOCAL_ADDRESS
+              value: "0.0.0.0"
+            - name: LOCAL_PORT
+              value: "2000"
+---
+# rtpe-controller-service
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: rtpe-controller
+  name: rtpe-controller
+spec:
+  ports:
+    - port: 2000
+      name: rtpe-controller-port
+      protocol: UDP
+      targetPort: 2000
+  selector:
+    app: rtpe-controller
+  type: ClusterIP
