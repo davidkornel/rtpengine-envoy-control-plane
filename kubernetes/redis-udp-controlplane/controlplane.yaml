@@ -27,6 +27,8 @@ spec:
               name: udp
             - containerPort: 18000
               name: management
+        - name: net-debug
+          image: l7mp/net-debug:0.5.3
 ---
 apiVersion: v1
 kind: Service

@@ -42,6 +42,9 @@ data:
             protocol: UDP
             address: 0.0.0.0
             port_value: 2000
+        udp_listener_config:
+          downstream_socket_config:
+            max_rx_datagram_size: 2000
         listener_filters:
           name: envoy.filters.udp_listener.udp_proxy
           typed_config:

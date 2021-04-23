@@ -41,6 +41,9 @@ data:
             protocol: UDP
             address: 0.0.0.0
             port_value: 22220
+        udp_listener_config:
+          downstream_socket_config:
+            max_rx_datagram_size: 2000
         listener_filters:
           name: envoy.filters.udp_listener.udp_proxy
           typed_config:
@@ -105,7 +108,7 @@ metadata:
   labels:
     app: worker
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: worker
@@ -133,7 +136,7 @@ spec:
           image: envoyproxy/envoy-dev:latest
           imagePullPolicy: Always
           command: [ "envoy" ]
-          args: ["-c", "/etc/envoy/envoy.yaml", "-l", "trace", "--drain-time-s", "1"]
+          args: ["-c", "/etc/envoy/envoy.yaml", "-l", "trace", "--component-log-level", "upstream:info", "--drain-time-s", "1"]
           ports:
             - containerPort: 1998
               name: ng-control
@@ -151,8 +154,6 @@ spec:
         - name: rtpengine
           image: drachtio/rtpengine
           imagePullPolicy: IfNotPresent
-          # command: ["/bin/sh"]
-          # args: ["-c", "while true; do echo hello; sleep 10;done"]
           command: [ "/usr/local/bin/rtpengine" ]
           args: [ "--config-file=/etc/rtpengine/rtpengine.conf", "-i", "lo", "-f", "-L", "7", "-E" ]
           volumeMounts:
@@ -172,8 +173,8 @@ data:
     # access only via the sidecar proxy
     # listen-ng=MY_IP:22222
     # interface=MY_IP
-    listen-ng=127.0.0.1:22222
-    interface=127.0.0.1
+    listen-ng=0.0.0.0:22222
+    interface=0.0.0.0
 
     foreground=true
     log-stderr=true
