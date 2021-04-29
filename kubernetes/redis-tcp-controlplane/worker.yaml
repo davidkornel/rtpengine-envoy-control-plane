@@ -171,8 +171,8 @@ data:
     # access only via the sidecar proxy
     # listen-ng=MY_IP:22222
     # interface=MY_IP
-    listen-ng=127.0.0.1:22222
-    interface=127.0.0.1
+    listen-tcp=0.0.0.0:22222
+    interface=0.0.0.0
 
     foreground=true
     log-stderr=true

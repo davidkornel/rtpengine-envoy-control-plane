@@ -24,7 +24,7 @@ spec:
           args: ["controlplane"]
           ports:
             - containerPort: 1234
-              name: udp
+              name: tcp
             - containerPort: 18000
               name: management
         - name: net-debug
@@ -39,8 +39,8 @@ metadata:
 spec:
   ports:
     - port: 1234
-      name: udp
-      protocol: UDP
+      name: tcp
+      protocol: TCP
       targetPort: 1234
     - port: 18000
       name: management
