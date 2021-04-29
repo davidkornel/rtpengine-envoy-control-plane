@@ -1,3 +1,21 @@
+# configmap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: controller-config
+data:
+  config.conf: |
+    [controller]
+    protocol=tcp
+    rtpe_address=0.0.0.0
+    rtpe_port=22222
+    envoy_address=envoy-controlplane
+    envoy_port=1234
+    local_address=0.0.0.0
+    local_port=2000
+    ingress_address=192.168.99.114
+    sidecar_type=envoy 
+---
 # rtpe-controller
 apiVersion: apps/v1
 kind: Deployment
@@ -15,31 +33,21 @@ spec:
       labels:
         app: rtpe-controller
     spec:
+      volumes:
+        - name: controller-volume
+          configMap:
+            name: controller-config
       containers:
         - name: net-debug
           image: l7mp/net-debug:0.5.3
         - name: rtpe-controller
-          image: vidarhun/rtpe-controller
-          imagePullPolicy: Always
-          env:
-            - name: RTPE_CONTROLLER
-              value: "envoy"
-            - name: RTPE_ADDRESS
-              value: "worker"
-            - name: RTPE_PORT
-              value: "22222"
-            - name: WITHOUT_JSONSOCKET
-              value: "yes"
-            - name: RTPE_PROTOCOL
-              value: 'udp'
-            - name: ENVOY_MGM_ADDRESS
-              value: "envoy-controlplane"
-            - name: ENVOY_MGM_PORT
-              value: "1234"
-            - name: LOCAL_ADDRESS
-              value: "0.0.0.0"
-            - name: LOCAL_PORT
-              value: "2000"
+          image: rtpe-controller
+          imagePullPolicy: Never
+          volumeMounts:
+            - name: controller-volume
+              mountPath: /app/config
+          command: ["python"]
+          args: ["controller.py", "-c", "config/config.conf", "-l", "debug"]
 ---
 # rtpe-controller-service
 apiVersion: v1
@@ -52,7 +60,7 @@ spec:
   ports:
     - port: 2000
       name: rtpe-controller-port
-      protocol: UDP
+      protocol: TCP
       targetPort: 2000
   selector:
     app: rtpe-controller
