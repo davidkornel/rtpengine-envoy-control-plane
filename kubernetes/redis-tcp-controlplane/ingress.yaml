@@ -120,7 +120,7 @@ spec:
           ports:
             # these ports are unnecessary because of hostNetwork: true
             # but good to be able to see which ports are in use by default
-            - containerPort: 19000
+            - containerPort: 18000
               name: admin
             - containerPort: 2000
               name: control-port

@@ -19,7 +19,7 @@ spec:
       containers:
         - name: envoy-controlplane
           image: davidkornel/controlplane:latest
-          #imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           command: [ "make" ]
           args: ["controlplane"]
           ports:
