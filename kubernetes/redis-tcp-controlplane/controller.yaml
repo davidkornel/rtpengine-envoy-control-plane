@@ -7,13 +7,13 @@ data:
   config.conf: |
     [controller]
     protocol=tcp
-    rtpe_address=0.0.0.0
-    rtpe_port=22222
+    rtpe_address=control-worker
+    rtpe_port=22220
     envoy_address=envoy-controlplane
     envoy_port=1234
     local_address=0.0.0.0
     local_port=2000
-    ingress_address=192.168.99.114
+    ingress_address=192.168.99.100
     sidecar_type=envoy 
 ---
 # rtpe-controller

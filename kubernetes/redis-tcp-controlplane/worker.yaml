@@ -153,7 +153,7 @@ spec:
           image: drachtio/rtpengine
           imagePullPolicy: IfNotPresent
           command: [ "/usr/local/bin/rtpengine" ]
-          args: [ "--config-file=/etc/rtpengine/rtpengine.conf", "-i", "lo", "-f", "-L", "7", "-E" ]
+          args: [ "--config-file=/etc/rtpengine/rtpengine.conf", "-f", "-E" ]
           volumeMounts:
             - name: rtpengine-config-volume
               mountPath: /etc/rtpengine
@@ -171,8 +171,8 @@ data:
     # access only via the sidecar proxy
     # listen-ng=MY_IP:22222
     # interface=MY_IP
-    listen-tcp=0.0.0.0:22222
-    interface=0.0.0.0
+    listen-tcp-ng=127.0.0.1:22222
+    interface=127.0.0.1
 
     foreground=true
     log-stderr=true
@@ -213,4 +213,19 @@ spec:
   clusterIP: None
   selector:
     app: worker
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: worker
+  name: control-worker
+spec:
+  selector:
+    app: worker
+  ports:
+    - port: 22220
+      name: control
+      protocol: TCP
+      targetPort: 22220
 ---

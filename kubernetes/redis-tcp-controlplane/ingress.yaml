@@ -116,11 +116,11 @@ spec:
           image: envoyproxy/envoy-dev:latest
           imagePullPolicy: Always
           command: [ "envoy" ]
-          args: ["-c", "/etc/envoy/envoy.yaml", "-l", "trace" , "--drain-time-s", "1"]
+          args: ["-c", "/etc/envoy/envoy.yaml", "-l", "trace", "--component-log-level", "upstream:info", "--drain-time-s", "1"]
           ports:
             # these ports are unnecessary because of hostNetwork: true
             # but good to be able to see which ports are in use by default
-            - containerPort: 19000
+            - containerPort: 18000
               name: admin
             - containerPort: 2000
               name: control-port
