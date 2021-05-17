@@ -12,9 +12,9 @@ set -o pipefail
 ENVOY=${ENVOY:-/usr/local/bin/envoy}
 
 # Start envoy: important to keep drain time short
-(envoy -c config/ingress-gw.yaml --base-id 1 --drain-time-s 1 -l debug)&
+(envoy -c config/ingress-gw.yaml --base-id 1 --drain-time-s 1 -l trace --component-log-level upstream:info)&
 ENVOY_PID_INGRESS=$!
-(envoy -c config/worker-sidecar.yaml --base-id 2 --drain-time-s 1 -l debug)&
+(envoy -c config/worker-sidecar.yaml --base-id 2 --drain-time-s 1 -l info)&
 ENVOY_PID_WORKER=$!
 
 
@@ -25,4 +25,4 @@ function cleanup() {
 trap cleanup EXIT
 
 #Run the control plane
-bin/controlplane -debug $@
+bin/controlplane $@
