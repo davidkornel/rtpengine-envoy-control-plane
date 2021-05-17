@@ -26,6 +26,8 @@ var (
 	port uint
 
 	nodeID string
+
+	tcpPort uint
 )
 
 func init() {
@@ -38,6 +40,9 @@ func init() {
 
 	// Tell Envoy to use this Node ID
 	flag.StringVar(&nodeID, "nodeID", "test-id", "Node ID")
+
+	// The port that this xDS server listens on
+	flag.UintVar(&tcpPort, "tcpPort", 1234, "TCP server port")
 }
 
 func main() {
@@ -55,7 +60,10 @@ func main() {
 
 	//Run the UDP server
 	go func() {
-		cp.Server(":1234", &l)
+		err := cp.Server(tcpPort, &l)
+		if err != nil {
+			return
+		}
 		wg.Done()
 	}()
 

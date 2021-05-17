@@ -16,7 +16,6 @@ package controlplane
 import (
 	"fmt"
 	"github.com/golang/protobuf/ptypes/wrappers"
-	"log"
 	"os"
 	"strconv"
 	"time"
@@ -57,6 +56,9 @@ type udpCluster struct {
 	upstreamHost string
 }
 
+var actualSnapshotResourcesIngress cachev3.SnapshotResources
+var actualSnapshotResourcesSidecar cachev3.SnapshotResources
+
 func makeUDPClusters(pod string) *[]types.Resource {
 	var clusters []types.Resource
 	if pod == "ingress" {
@@ -79,7 +81,7 @@ func makeUDPClusterIngress(udpClust udpCluster) *[]types.Resource {
 		ClusterDiscoveryType: &cluster.Cluster_Type{
 			Type: cluster.Cluster_STRICT_DNS,
 		},
-		LbPolicy: cluster.Cluster_ROUND_ROBIN,
+		LbPolicy: cluster.Cluster_MAGLEV,
 		HealthChecks: []*core.HealthCheck{{
 			Timeout:            ptypes.DurationProto(100 * time.Millisecond),
 			Interval:           ptypes.DurationProto(100 * time.Millisecond),
@@ -89,12 +91,12 @@ func makeUDPClusterIngress(udpClust udpCluster) *[]types.Resource {
 				TcpHealthCheck: &core.HealthCheck_TcpHealthCheck{
 					Send: &core.HealthCheck_Payload{
 						Payload: &core.HealthCheck_Payload_Text{
-							Text: "00000FF",
+							Text: "000000FF",
 						},
 					},
 					Receive: []*core.HealthCheck_Payload{{
 						Payload: &core.HealthCheck_Payload_Text{
-							Text: "00000FF",
+							Text: "000000FF",
 						},
 					}},
 				},
@@ -272,20 +274,75 @@ func makeUDPListenerSidecar(udpList udpListener) *[]types.Resource {
 func GenerateSnapshot(pod string) cachev3.Snapshot {
 	if pod == "ingress" {
 		ingressVersion++
+		var newSnapshotResources = cachev3.SnapshotResources{
+			Endpoints:        []types.Resource{},
+			Clusters:         append(actualSnapshotResourcesIngress.Clusters, *makeUDPClusters(pod)...),
+			Routes:           []types.Resource{},
+			Listeners:        append(actualSnapshotResourcesIngress.Listeners, *makeUDPListeners(pod)...),
+			Runtimes:         []types.Resource{},
+			Secrets:          []types.Resource{},
+			ExtensionConfigs: []types.Resource{},
+		}
+
+		actualSnapshotResourcesIngress = newSnapshotResources
+
+		return cachev3.NewSnapshot(
+			strconv.Itoa(ingressVersion),
+			newSnapshotResources.Endpoints,
+			newSnapshotResources.Clusters,
+			newSnapshotResources.Routes,
+			newSnapshotResources.Listeners,
+			newSnapshotResources.Runtimes,
+			newSnapshotResources.Secrets,
+		)
 	} else if pod == "sidecar" {
 		sidecarVersion++
+		var newSnapshotResources = cachev3.SnapshotResources{
+			Endpoints:        []types.Resource{},
+			Clusters:         append(actualSnapshotResourcesSidecar.Clusters, *makeUDPClusters(pod)...),
+			Routes:           []types.Resource{},
+			Listeners:        append(actualSnapshotResourcesSidecar.Listeners, *makeUDPListeners(pod)...),
+			Runtimes:         []types.Resource{},
+			Secrets:          []types.Resource{},
+			ExtensionConfigs: []types.Resource{},
+		}
+
+		actualSnapshotResourcesSidecar = newSnapshotResources
+
+		return cachev3.NewSnapshot(
+			strconv.Itoa(ingressVersion),
+			newSnapshotResources.Endpoints,
+			newSnapshotResources.Clusters,
+			newSnapshotResources.Routes,
+			newSnapshotResources.Listeners,
+			newSnapshotResources.Runtimes,
+			newSnapshotResources.Secrets,
+		)
 	} else {
-		log.Fatal("Envoy NodeId not known: ", pod)
+		fmt.Println("ERROR BAD SNAPSHOT")
+		var newSnapshotResources = cachev3.SnapshotResources{
+			Endpoints:        []types.Resource{},
+			Clusters:         append(actualSnapshotResourcesSidecar.Clusters, *makeUDPClusters(pod)...),
+			Routes:           []types.Resource{},
+			Listeners:        append(actualSnapshotResourcesSidecar.Listeners, *makeUDPListeners(pod)...),
+			Runtimes:         []types.Resource{},
+			Secrets:          []types.Resource{},
+			ExtensionConfigs: []types.Resource{},
+		}
+
+		actualSnapshotResourcesSidecar = newSnapshotResources
+
+		return cachev3.NewSnapshot(
+			strconv.Itoa(ingressVersion),
+			newSnapshotResources.Endpoints,
+			newSnapshotResources.Clusters,
+			newSnapshotResources.Routes,
+			newSnapshotResources.Listeners,
+			newSnapshotResources.Runtimes,
+			newSnapshotResources.Secrets,
+		)
+		//log.Fatal("Envoy NodeId not known: ", pod)
 	}
-	return cachev3.NewSnapshot(
-		strconv.Itoa(ingressVersion),
-		[]types.Resource{}, // endpoints
-		*makeUDPClusters(pod),
-		[]types.Resource{},     //routes
-		*makeUDPListeners(pod), //listeners
-		[]types.Resource{},     // runtimes
-		[]types.Resource{},     // secrets
-	)
 }
 
 func createNewListeners(m Message) {
@@ -293,41 +350,41 @@ func createNewListeners(m Message) {
 	sidecarListeners = make([]udpListener, 0)
 	//INGRESS
 	var rtpAI = udpListener{
-		listenerName: fmt.Sprintf("ingress-l-rtp-a-%d", ingressVersion+1),
+		listenerName: fmt.Sprintf("ingress-l-rtp-a-%d-%s", ingressVersion+1, m.CallId),
 		cluster: udpCluster{
-			clusterName:  fmt.Sprintf("ingress-c-rtp-a-%d", ingressVersion+1),
-			upstreamPort: 19000,
-			upstreamHost: "worker.default.svc",
+			clusterName:  fmt.Sprintf("ingress-c-rtp-a-%d-%s", ingressVersion+1, m.CallId),
+			upstreamPort: m.CallerRTP + 10000,
+			upstreamHost: "worker.default.svc.cluster.local",
 		},
 		listenerPort:    m.CallerRTP,
 		listenerAddress: "0.0.0.0",
 	}
 	var rtcpAI = udpListener{
-		listenerName: fmt.Sprintf("ingress-l-rtcp-a-%d", ingressVersion+1),
+		listenerName: fmt.Sprintf("ingress-l-rtcp-a-%d-%s", ingressVersion+1, m.CallId),
 		cluster: udpCluster{
-			clusterName:  fmt.Sprintf("ingress-c-rtcp-a-%d", ingressVersion+1),
-			upstreamPort: 19001,
-			upstreamHost: "worker.default.svc",
+			clusterName:  fmt.Sprintf("ingress-c-rtcp-a-%d-%s", ingressVersion+1, m.CallId),
+			upstreamPort: m.CallerRTCP + 10000,
+			upstreamHost: "worker.default.svc.cluster.local",
 		},
 		listenerPort:    m.CallerRTCP,
 		listenerAddress: "0.0.0.0",
 	}
 	var rtpBI = udpListener{
-		listenerName: fmt.Sprintf("ingress-l-rtp-b-%d", ingressVersion+1),
+		listenerName: fmt.Sprintf("ingress-l-rtp-b-%d-%s", ingressVersion+1, m.CallId),
 		cluster: udpCluster{
-			clusterName:  fmt.Sprintf("ingress-c-rtp-b-%d", ingressVersion+1),
-			upstreamPort: 19002,
-			upstreamHost: "worker.default.svc",
+			clusterName:  fmt.Sprintf("ingress-c-rtp-b-%d-%s", ingressVersion+1, m.CallId),
+			upstreamPort: m.CalleeRTP + 10000,
+			upstreamHost: "worker.default.svc.cluster.local",
 		},
 		listenerPort:    m.CalleeRTP,
 		listenerAddress: "0.0.0.0",
 	}
 	var rtcpBI = udpListener{
-		listenerName: fmt.Sprintf("ingress-l-rtcp-b-%d", ingressVersion+1),
+		listenerName: fmt.Sprintf("ingress-l-rtcp-b-%d-%s", ingressVersion+1, m.CallId),
 		cluster: udpCluster{
-			clusterName:  fmt.Sprintf("ingress-c-rtcp-b-%d", ingressVersion+1),
-			upstreamPort: 19003,
-			upstreamHost: "worker.default.svc",
+			clusterName:  fmt.Sprintf("ingress-c-rtcp-b-%d-%s", ingressVersion+1, m.CallId),
+			upstreamPort: m.CalleeRTCP + 10000,
+			upstreamHost: "worker.default.svc.cluster.local",
 		},
 		listenerPort:    m.CalleeRTCP,
 		listenerAddress: "0.0.0.0",
@@ -335,43 +392,43 @@ func createNewListeners(m Message) {
 
 	//WORKER/SIDECAR
 	var rtpAW = udpListener{
-		listenerName: fmt.Sprintf("worker-l-rtp-a-%d", sidecarVersion+1),
+		listenerName: fmt.Sprintf("worker-l-rtp-a-%d-%s", sidecarVersion+1, m.CallId),
 		cluster: udpCluster{
-			clusterName:  fmt.Sprintf("worker-c-rtp-a-%d", sidecarVersion+1),
+			clusterName:  fmt.Sprintf("worker-c-rtp-a-%d-%s", sidecarVersion+1, m.CallId),
 			upstreamPort: m.CallerRTP,
 			upstreamHost: "127.0.0.1",
 		},
-		listenerPort:    19000,
+		listenerPort:    m.CallerRTP + 1000,
 		listenerAddress: "0.0.0.0",
 	}
 	var rtcpAW = udpListener{
-		listenerName: fmt.Sprintf("worker-l-rtcp-a-%d", sidecarVersion+1),
+		listenerName: fmt.Sprintf("worker-l-rtcp-a-%d-%s", sidecarVersion+1, m.CallId),
 		cluster: udpCluster{
-			clusterName:  fmt.Sprintf("worker-c-rtcp-a-%d", sidecarVersion+1),
+			clusterName:  fmt.Sprintf("worker-c-rtcp-a-%d-%s", sidecarVersion+1, m.CallId),
 			upstreamPort: m.CallerRTCP,
 			upstreamHost: "127.0.0.1",
 		},
-		listenerPort:    19001,
+		listenerPort:    m.CallerRTCP + 10000,
 		listenerAddress: "0.0.0.0",
 	}
 	var rtpBW = udpListener{
-		listenerName: fmt.Sprintf("worker-l-rtp-b-%d", sidecarVersion+1),
+		listenerName: fmt.Sprintf("worker-l-rtp-b-%d-%s", sidecarVersion+1, m.CallId),
 		cluster: udpCluster{
-			clusterName:  fmt.Sprintf("worker-c-rtp-b-%d", sidecarVersion+1),
+			clusterName:  fmt.Sprintf("worker-c-rtp-b-%d-%s", sidecarVersion+1, m.CallId),
 			upstreamPort: m.CalleeRTP,
 			upstreamHost: "127.0.0.1",
 		},
-		listenerPort:    19002,
+		listenerPort:    m.CalleeRTP + 10000,
 		listenerAddress: "0.0.0.0",
 	}
 	var rtcpBW = udpListener{
-		listenerName: fmt.Sprintf("worker-l-rtcp-b-%d", sidecarVersion+1),
+		listenerName: fmt.Sprintf("worker-l-rtcp-b-%d-%s", sidecarVersion+1, m.CallId),
 		cluster: udpCluster{
-			clusterName:  fmt.Sprintf("worker-c-rtcp-b-%d", sidecarVersion+1),
+			clusterName:  fmt.Sprintf("worker-c-rtcp-b-%d-%s", sidecarVersion+1, m.CallId),
 			upstreamPort: m.CalleeRTCP,
 			upstreamHost: "127.0.0.1",
 		},
-		listenerPort:    19003,
+		listenerPort:    m.CalleeRTCP + 10000,
 		listenerAddress: "0.0.0.0",
 	}
 	ingressListeners = append(ingressListeners, rtpAI, rtcpAI, rtpBI, rtcpBI)
