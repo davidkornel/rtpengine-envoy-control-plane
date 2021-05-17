@@ -72,7 +72,7 @@ data:
                     address: envoy-controlplane.default.svc
                     port_value: 18000
       - name: worker_ng_control_cluster
-        connect_timeout: 0.25s
+        connect_timeout: 5s
         type: STRICT_DNS
         lb_policy: ROUND_ROBIN
         load_assignment:
@@ -106,7 +106,7 @@ metadata:
   labels:
     app: worker
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: worker
@@ -153,7 +153,7 @@ spec:
           image: drachtio/rtpengine
           imagePullPolicy: IfNotPresent
           command: [ "/usr/local/bin/rtpengine" ]
-          args: [ "--config-file=/etc/rtpengine/rtpengine.conf", "-i", "lo", "-f", "-L", "7", "-E" ]
+          args: [ "--config-file=/etc/rtpengine/rtpengine.conf", "-f", "-E" ]
           volumeMounts:
             - name: rtpengine-config-volume
               mountPath: /etc/rtpengine
@@ -171,8 +171,8 @@ data:
     # access only via the sidecar proxy
     # listen-ng=MY_IP:22222
     # interface=MY_IP
-    listen-tcp-ng=0.0.0.0:22222
-    interface=0.0.0.0
+    listen-tcp-ng=127.0.0.1:22222
+    interface=127.0.0.1
 
     foreground=true
     log-stderr=true
