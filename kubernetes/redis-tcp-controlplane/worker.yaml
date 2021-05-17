@@ -72,7 +72,7 @@ data:
                     address: envoy-controlplane.default.svc
                     port_value: 18000
       - name: worker_ng_control_cluster
-        connect_timeout: 0.25s
+        connect_timeout: 5s
         type: STRICT_DNS
         lb_policy: ROUND_ROBIN
         load_assignment:
