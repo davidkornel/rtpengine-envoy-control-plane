@@ -84,3 +84,9 @@ $(BINDIR)/controlplane:
 controlplane: $(BINDIR)/controlplane
 	@bin/controlplane -debug $@
 	#@build/controlplane.sh
+
+$(BINDIR)/local:
+	@go build -race -o $@ controlplane/main/main.go
+
+local: $(BINDIR)/local
+	@build/controlplane.sh
