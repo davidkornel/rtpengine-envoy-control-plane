@@ -47,7 +47,7 @@ spec:
             - name: controller-volume
               mountPath: /app/config
           command: ["python"]
-          args: ["controller.py", "-c", "config/config.conf", "-l", "debug"]
+          args: ["controller.py", "-c", "config/config.conf", "-l", "info"]
 ---
 # rtpe-controller-service
 apiVersion: v1

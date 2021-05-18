@@ -184,7 +184,7 @@ data:
     # recording-method=pcap
     # recording-format=eth
 
-    log-level=7
+    log-level=6
     delete-delay=0
 
     timeout=600
