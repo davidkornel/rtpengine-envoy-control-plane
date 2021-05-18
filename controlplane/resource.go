@@ -398,7 +398,7 @@ func createNewListeners(m Message) {
 			upstreamPort: m.CallerRTP,
 			upstreamHost: "127.0.0.1",
 		},
-		listenerPort:    m.CallerRTP + 1000,
+		listenerPort:    m.CallerRTP + 10000,
 		listenerAddress: "0.0.0.0",
 	}
 	var rtcpAW = udpListener{
@@ -461,7 +461,7 @@ func updateConfig(pod string, l *Logger) {
 	//	l.Debugf("No snapshot to be cleared: %s", err)
 	//}
 
-	l.Debugf("will serve snapshot %+v", snapshot)
+	//l.Debugf("will serve snapshot %+v", snapshot)
 	// Add the snapshot to the cache
 	if err := cache.SetSnapshot(pod, snapshot); err != nil {
 		l.Errorf("snapshot error %q for %+v", err, snapshot)
