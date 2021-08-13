@@ -15,7 +15,6 @@ package controlplane
 
 import (
 	"fmt"
-	"github.com/golang/protobuf/ptypes/wrappers"
 	"os"
 	"strconv"
 	"time"
@@ -54,6 +53,7 @@ type udpCluster struct {
 	upstreamPort uint32
 	//upstreamHost is the listenerAddress of an endpoint where udpCluster forwards the datagrams
 	upstreamHost string
+	rtpeAddress  string
 }
 
 var actualSnapshotResourcesIngress cachev3.SnapshotResources
@@ -81,8 +81,8 @@ func makeUDPClusterIngress(udpClust udpCluster) *[]types.Resource {
 		ClusterDiscoveryType: &cluster.Cluster_Type{
 			Type: cluster.Cluster_STRICT_DNS,
 		},
-		LbPolicy: cluster.Cluster_MAGLEV,
-		HealthChecks: []*core.HealthCheck{{
+		//LbPolicy: cluster.Cluster_MAGLEV,
+		/*HealthChecks: []*core.HealthCheck{{
 			Timeout:            ptypes.DurationProto(100 * time.Millisecond),
 			Interval:           ptypes.DurationProto(100 * time.Millisecond),
 			UnhealthyThreshold: &wrappers.UInt32Value{Value: 1},
@@ -102,7 +102,7 @@ func makeUDPClusterIngress(udpClust udpCluster) *[]types.Resource {
 				},
 			},
 			NoTrafficInterval: ptypes.DurationProto(1 * time.Second),
-		}},
+		}},*/
 		LoadAssignment: makeEndpointIngress(udpClust),
 	}
 	return &[]types.Resource{clust}
@@ -158,16 +158,16 @@ func makeEndpointIngress(udpClust udpCluster) *endpoint.ClusterLoadAssignment {
 							Address: &core.Address_SocketAddress{
 								SocketAddress: &core.SocketAddress{
 									Protocol: core.SocketAddress_UDP,
-									Address:  udpClust.upstreamHost,
+									Address:  udpClust.rtpeAddress,
 									PortSpecifier: &core.SocketAddress_PortValue{
 										PortValue: udpClust.upstreamPort,
 									},
 								},
 							},
 						},
-						HealthCheckConfig: &endpoint.Endpoint_HealthCheckConfig{
+						/*HealthCheckConfig: &endpoint.Endpoint_HealthCheckConfig{
 							PortValue: 1233,
-						},
+						},*/
 					},
 				},
 			}},
@@ -355,6 +355,7 @@ func createNewListeners(m Message) {
 			clusterName:  fmt.Sprintf("ingress-c-rtp-a-%d-%s", ingressVersion+1, m.CallId),
 			upstreamPort: m.CallerRTP + 10000,
 			upstreamHost: "worker.default.svc.cluster.local",
+			rtpeAddress:  m.RtpeAddress,
 		},
 		listenerPort:    m.CallerRTP,
 		listenerAddress: "0.0.0.0",
@@ -365,6 +366,7 @@ func createNewListeners(m Message) {
 			clusterName:  fmt.Sprintf("ingress-c-rtcp-a-%d-%s", ingressVersion+1, m.CallId),
 			upstreamPort: m.CallerRTCP + 10000,
 			upstreamHost: "worker.default.svc.cluster.local",
+			rtpeAddress:  m.RtpeAddress,
 		},
 		listenerPort:    m.CallerRTCP,
 		listenerAddress: "0.0.0.0",
@@ -375,6 +377,7 @@ func createNewListeners(m Message) {
 			clusterName:  fmt.Sprintf("ingress-c-rtp-b-%d-%s", ingressVersion+1, m.CallId),
 			upstreamPort: m.CalleeRTP + 10000,
 			upstreamHost: "worker.default.svc.cluster.local",
+			rtpeAddress:  m.RtpeAddress,
 		},
 		listenerPort:    m.CalleeRTP,
 		listenerAddress: "0.0.0.0",
@@ -385,6 +388,7 @@ func createNewListeners(m Message) {
 			clusterName:  fmt.Sprintf("ingress-c-rtcp-b-%d-%s", ingressVersion+1, m.CallId),
 			upstreamPort: m.CalleeRTCP + 10000,
 			upstreamHost: "worker.default.svc.cluster.local",
+			rtpeAddress:  m.RtpeAddress,
 		},
 		listenerPort:    m.CalleeRTCP,
 		listenerAddress: "0.0.0.0",

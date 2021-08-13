@@ -6,23 +6,24 @@ import (
 	"net"
 )
 
-const maxBufferSize = 1024
+//const maxBufferSize = 1024
 
-type bencodedMessage struct {
+/*type bencodedMessage struct {
 	ICE     string
 	CallId  string "call-id"
 	Command string
 	FromTag string "from-tag"
 	Label   string
 	Sdp     string
-}
+}*/
 
 type Message struct {
-	CallerRTP  uint32 `json:"caller_rtp"`
-	CallerRTCP uint32 `json:"caller_rtcp"`
-	CalleeRTP  uint32 `json:"callee_rtp"`
-	CalleeRTCP uint32 `json:"callee_rtcp"`
-	CallId     string `json:"call_id"`
+	CallerRTP   uint32 `json:"caller_rtp"`
+	CallerRTCP  uint32 `json:"caller_rtcp"`
+	CalleeRTP   uint32 `json:"callee_rtp"`
+	CalleeRTCP  uint32 `json:"callee_rtcp"`
+	CallId      string `json:"call_id"`
+	RtpeAddress string `json:"rtpe_address"`
 }
 
 func Server(tcpPort uint, l *Logger) (err error) {
@@ -48,7 +49,7 @@ func Server(tcpPort uint, l *Logger) (err error) {
 		}
 		go handleConnection(c, l)
 	}
-	return
+	//return
 }
 
 func handleConnection(c net.Conn, l *Logger) {
